@@ -1,0 +1,9 @@
+fastapi==0.115.8
+uvicorn==0.34.0
+gunicorn==23.0.0
+gradio==5.14.0
+azure-ai-projects==1.0.0b5
+azure-identity==1.19.0
+python-dotenv==1.0.1
+requests==2.32.3
+yfinance==0.2.52
