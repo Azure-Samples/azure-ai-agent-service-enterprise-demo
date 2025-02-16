@@ -135,7 +135,7 @@ Use this demo as a reference for creating, deploying, and managing enterprise-sc
         - “Send an email summary of the HR policy.” _(Triggers the Logic App if configured)_
 
 ## Deploying the Send Email Logic App
-The sample includes a Logic App ARM template (`send_email_logic_app.template.json`) that you can deploy to enable the send_email functionality.
+The sample includes a Logic App ARM template (`send_email_logic_app.json`) that you can deploy to enable the send_email functionality.
 ### Steps to Deploy:
 1. The template defines a simple logic app that triggers on an HTTP request. It expects a JSON payload with `recipient`, `subject`, and `body` fields.
 2. Deploy the template using the Azure CLI or the Azure Portal.
