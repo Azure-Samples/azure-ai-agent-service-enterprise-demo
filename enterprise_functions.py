@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
 def fetch_datetime(
     format_str: str = "%Y-%m-%d %H:%M:%S",
     unix_ts: int | None = None,
@@ -64,10 +65,12 @@ def fetch_weather(
         if not location:
             return json.dumps({"error": "Missing required parameter: location"})
 
-        geo_api_key = os.environ.get("OPENWEATHER_GEO_API_KEY")
-        one_api_key = os.environ.get("OPENWEATHER_ONE_API_KEY")
-        if not geo_api_key or not one_api_key:
+        # geo_api_key = os.environ.get("OPENWEATHER_GEO_API_KEY")
+        geo_api_key = one_api_key = os.environ.get("OPENWEATHER_ONE_API_KEY")
+        if not geo_api_key and not one_api_key:
             return json.dumps({"error": "Missing OpenWeather API keys in environment."})
+        elif not one_api_key:
+            geo_api_key = one_api_key
 
         # Convert location -> lat/lon:
         if country_code and state_code:
@@ -76,11 +79,12 @@ def fetch_weather(
             query = f"{location},{country_code}"
         else:
             query = location
-
+        
         geocode_url = (
             f"http://api.openweathermap.org/geo/1.0/direct?"
             f"q={query}&limit={limit}&appid={geo_api_key}"
         )
+
         geo_resp = requests.get(geocode_url)
         if geo_resp.status_code != 200:
             return json.dumps({
@@ -98,46 +102,48 @@ def fetch_weather(
         if lat is None or lon is None:
             return json.dumps({"error": "No valid lat/long returned."})
 
-        tf = timeframe.lower()
-        if tf == "timemachine":
-            if dt_unix is None:
-                return json.dumps({
-                    "error": "For timeframe='timemachine', you must provide 'dt_unix'."
-                })
-            url = (
-                f"https://api.openweathermap.org/data/3.0/onecall/timemachine"
+        tf = timeframe = "current"
+        url = (
+                f"https://api.openweathermap.org/data/2.5/forecast"
                 f"?lat={lat}&lon={lon}"
-                f"&dt={dt_unix}"
                 f"&units=metric"
+                f"&cnt={limit}"
                 f"&appid={one_api_key}"
             )
-        elif tf == "overview":
-            date_obj = pydatetime.utcnow() + timedelta(days=time_offset)
-            date_str = date_obj.strftime("%Y-%m-%d")
-            url = (
-                f"https://api.openweathermap.org/data/3.0/onecall/overview?"
-                f"lat={lat}&lon={lon}"
-                f"&date={date_str}"
-                f"&units=metric"
-                f"&appid={one_api_key}"
-            )
-        else:
-            if tf == "current":
-                exclude = "minutely,hourly,daily,alerts"
-            elif tf == "hourly":
-                exclude = "minutely,daily,alerts"
-            elif tf == "daily":
-                exclude = "minutely,hourly,alerts"
-            else:
-                exclude = ""
+        # tf = timeframe.lower()
+        # if tf == "timemachine":
+        #     if dt_unix is None:
+        #         return json.dumps({
+        #             "error": "For timeframe='timemachine', you must provide 'dt_unix'."
+        #         })
 
-            url = (
-                f"https://api.openweathermap.org/data/3.0/onecall?"
-                f"lat={lat}&lon={lon}"
-                f"&exclude={exclude}"
-                f"&units=metric"
-                f"&appid={one_api_key}"
-            )
+        # elif tf == "overview":
+        #     date_obj = pydatetime.utcnow() + timedelta(days=time_offset)
+        #     date_str = date_obj.strftime("%Y-%m-%d")
+        #     url = (
+        #         f"https://api.openweathermap.org/data/3.0/onecall/overview?"
+        #         f"lat={lat}&lon={lon}"
+        #         f"&date={date_str}"
+        #         f"&units=metric"
+        #         f"&appid={one_api_key}"
+        #     )
+        # else:
+        #     if tf == "current":
+        #         exclude = "minutely,hourly,daily,alerts"
+        #     elif tf == "hourly":
+        #         exclude = "minutely,daily,alerts"
+        #     elif tf == "daily":
+        #         exclude = "minutely,hourly,alerts"
+        #     else:
+        #         exclude = ""
+
+            # url = (
+            #     f"https://api.openweathermap.org/data/3.0/onecall?"
+            #     f"lat={lat}&lon={lon}"
+            #     f"&exclude={exclude}"
+            #     f"&units=metric"
+            #     f"&appid={one_api_key}"
+            # )
 
         resp = requests.get(url)
         if resp.status_code != 200:
@@ -181,7 +187,7 @@ def fetch_weather(
                 })
             sel = arr[time_offset]
         else:
-            sel = data.get("current", {})
+            sel = data.get("list", {})[0]
 
         if not isinstance(sel, dict):
             return json.dumps({"error": f"Unexpected data format for timeframe={timeframe}"})
@@ -190,8 +196,8 @@ def fetch_weather(
         if sel.get("weather"):
             description = sel["weather"][0].get("description", "N/A")
 
-        temp_c = sel.get("temp")
-        humidity = sel.get("humidity", "N/A")
+        temp_c = sel.get("main", {}).get("temp")
+        humidity = sel.get("main", {}).get("humidity", "N/A")
         if isinstance(temp_c, (int, float)):
             temp_f = round(temp_c * 9 / 5 + 32, 2)
         else:
